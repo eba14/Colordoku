@@ -1,0 +1,12 @@
+.timer {
+  font-family: var(--font-title);
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--brown-dark);
+  letter-spacing: 1px;
+  background: var(--beige-card);
+  padding: 10px 24px;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
+}

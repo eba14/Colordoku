@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Beige background with rounded corners -->
+  <rect width="64" height="64" rx="14" fill="#f2ece0"/>
+  <!-- 2x2 colored grid, centered -->
+  <rect x="8"  y="8"  width="22" height="22" rx="5" fill="#e74c3c"/>
+  <rect x="34" y="8"  width="22" height="22" rx="5" fill="#3498db"/>
+  <rect x="8"  y="34" width="22" height="22" rx="5" fill="#2ecc71"/>
+  <rect x="34" y="34" width="22" height="22" rx="5" fill="#f1c40f"/>
+</svg>
