@@ -110,3 +110,24 @@
 }
 
 .win-bounce { animation: winBounce 0.5s ease forwards; }
+
+/* Give-up: board pieces fly back to tray */
+@keyframes giveUpCollect {
+  0%   { transform: scale(1); opacity: 1; }
+  30%  { transform: scale(1.06); }
+  100% { transform: scale(0.05) translateY(10px); opacity: 0; }
+}
+.give-up-collect {
+  animation: giveUpCollect 0.52s cubic-bezier(0.3, 0, 0.7, 1) forwards;
+}
+
+/* Give-up: piece drops onto board with a bounce */
+@keyframes solveDrop {
+  0%   { transform: scale(0.2) rotate(-12deg); opacity: 0; }
+  55%  { transform: scale(1.1) rotate(2deg); opacity: 1; }
+  78%  { transform: scale(0.96) rotate(0deg); }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+.solve-drop {
+  animation: solveDrop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}

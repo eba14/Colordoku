@@ -33,17 +33,13 @@ function Toggle({ checked, onChange, label }) {
   );
 }
 
-// Loading bar + transition screen
 function LoadingTransition({ mode, modeColor, onDone }) {
   const [started, setStarted] = useState(false);
-
   useEffect(() => {
-    // Tiny delay so bar renders at 0% before CSS transition kicks in
     const t1 = setTimeout(() => setStarted(true), 60);
     const t2 = setTimeout(onDone, 3000);
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, []);
-
   return (
     <div className="loading-screen" style={{ '--load-color': modeColor }}>
       <div className="loading-mode-label">{mode}</div>
@@ -55,16 +51,13 @@ function LoadingTransition({ mode, modeColor, onDone }) {
   );
 }
 
-// Countdown overlay: 3, 2, 1, Go!
 function Countdown({ onDone }) {
   const [count, setCount] = useState(3);
-
   useEffect(() => {
     if (count === 0) { onDone(); return; }
     const t = setTimeout(() => setCount(c => c - 1), 800);
     return () => clearTimeout(t);
   }, [count]);
-
   return (
     <div className="countdown-overlay">
       <span key={count} className={`countdown-number ${count === 0 ? 'go' : ''}`}>
@@ -79,7 +72,7 @@ const MODE_COLORS = {
 };
 
 export default function App() {
-  const [screen, setScreen] = useState('menu'); // menu | loading | countdown | game | win
+  const [screen, setScreen] = useState('menu');
   const [puzzle, setPuzzle] = useState(null);
   const [pieces, setPieces] = useState([]);
   const [placedPieces, setPlacedPieces] = useState([]);
@@ -94,18 +87,31 @@ export default function App() {
   const [showConflicts, setShowConflicts] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
   const [incorrectFeedback, setIncorrectFeedback] = useState(false);
+  // give-up animation phases: none | collecting | rotating | placing | done
+  const [giveUpPhase, setGiveUpPhase] = useState('none');
+  const [giveUpPlacingId, setGiveUpPlacingId] = useState(null);
+  const [lastSolvedPieceId, setLastSolvedPieceId] = useState(null);
   const puzzleRef = useRef(null);
 
+  // Press R to rotate the selected tray piece
+  useEffect(() => {
+    if (screen !== 'game') return;
+    function onKey(e) {
+      if ((e.key === 'r' || e.key === 'R') && selectedId !== null && giveUpPhase === 'none') {
+        rotatePiece(selectedId);
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [screen, selectedId, giveUpPhase]);
+
   function handleModeSelect(mode) {
-    // Generate puzzle in background while loading bar plays
     puzzleRef.current = generatePuzzle(mode);
     setCurrentMode(mode);
     setScreen('loading');
   }
 
-  function handleLoadingDone() {
-    setScreen('countdown');
-  }
+  function handleLoadingDone() { setScreen('countdown'); }
 
   function handleCountdownDone() {
     const p = puzzleRef.current;
@@ -119,6 +125,9 @@ export default function App() {
     setIncorrectFeedback(false);
     setTimerRunning(true);
     setShowSettings(false);
+    setGiveUpPhase('none');
+    setGiveUpPlacingId(null);
+    setLastSolvedPieceId(null);
     setScreen('game');
   }
 
@@ -156,7 +165,6 @@ export default function App() {
     const boardPiece = placedPieces.find(p => p.id === pieceId);
     const piece = trayPiece || boardPiece;
     if (!piece) return;
-
     const withoutThis = placedPieces.filter(p => p.id !== pieceId);
     const displaced = withoutThis.find(p => p.boardRow === slotRow && p.boardCol === slotCol);
     const newPlaced = [
@@ -184,27 +192,76 @@ export default function App() {
   }
 
   function handleGiveUp() {
+    if (giveUpPhase !== 'none') return;
     setTimerRunning(false);
-    setShowSolution(true);
     setIncorrectFeedback(false);
+    setSelectedId(null);
+    setShowSettings(false);
+    setGiveUpPhase('collecting');
+
     const solved = puzzle.pieces.map(p => ({
       ...p, cells: p.solvedCells, boardRow: p.solvedRow, boardCol: p.solvedCol,
     }));
-    setPlacedPieces(solved);
-    setPieces([]);
+    // Place pieces top-left → bottom-right for a satisfying reveal sweep
+    const sortedSolved = [...solved].sort((a, b) =>
+      a.boardRow !== b.boardRow ? a.boardRow - b.boardRow : a.boardCol - b.boardCol
+    );
+
+    // Phase 1 — collecting: board pieces shrink away (700 ms)
+    setTimeout(() => {
+      setPlacedPieces([]);
+      setPieces(sortedSolved.map(p => ({
+        id: p.id, displayNumber: p.displayNumber,
+        cells: p.solvedCells, solvedCells: p.solvedCells,
+        solvedRow: p.solvedRow, solvedCol: p.solvedCol,
+      })));
+      setGiveUpPhase('rotating');
+
+      // Phase 2 — rotating: tray pieces spin to correct orientation (1000 ms)
+      setTimeout(() => {
+        setGiveUpPhase('placing');
+
+        // Phase 3 — placing: one by one, tray → board
+        sortedSolved.forEach((piece, i) => {
+          setTimeout(() => {
+            setGiveUpPlacingId(piece.id);
+            setTimeout(() => {
+              setLastSolvedPieceId(piece.id);
+              setPlacedPieces(prev => [...prev, piece]);
+              setPieces(prev => prev.filter(p => p.id !== piece.id));
+              setGiveUpPlacingId(null);
+              setTimeout(() => setLastSolvedPieceId(null), 500);
+            }, 300);
+          }, i * 540);
+        });
+
+        // Phase 4 — done: reveal banner
+        setTimeout(() => {
+          setGiveUpPhase('done');
+          setShowSolution(true);
+          setPieces([]);
+        }, sortedSolved.length * 540 + 500);
+
+      }, 1000);
+    }, 700);
   }
 
   const unplacedPieces = pieces.filter(p => !placedPieces.find(pp => pp.id === p.id));
   const allPlaced = puzzle && placedPieces.length === puzzle.numPieces;
+  const isAnimating = giveUpPhase !== 'none' && giveUpPhase !== 'done';
 
-  if (screen === 'menu') return <ModeSelector onSelect={handleModeSelect} />;
+  if (screen === 'menu') return (
+    <ModeSelector
+      onSelect={handleModeSelect}
+      showNumbers={showNumbers}
+      onShowNumbers={setShowNumbers}
+      showConflicts={showConflicts}
+      onShowConflicts={setShowConflicts}
+    />
+  );
 
   if (screen === 'loading') return (
-    <LoadingTransition
-      mode={currentMode}
-      modeColor={MODE_COLORS[currentMode]}
-      onDone={handleLoadingDone}
-    />
+    <LoadingTransition mode={currentMode} modeColor={MODE_COLORS[currentMode]} onDone={handleLoadingDone} />
   );
 
   if (screen === 'countdown') return (
@@ -254,16 +311,26 @@ export default function App() {
         <button className="btn-back" onClick={() => { setTimerRunning(false); setScreen('menu'); }}>← Menu</button>
         <Timer running={timerRunning} onTick={setFinalTime} />
         <div className="header-right">
-          <button className={`btn-settings ${showSettings ? 'active' : ''}`} onClick={() => setShowSettings(s => !s)}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-            </svg>
-          </button>
-          <button className="btn-giveup" onClick={handleGiveUp}>Give Up</button>
+          {!isAnimating && (
+            <button className={`btn-settings ${showSettings ? 'active' : ''}`} onClick={() => setShowSettings(s => !s)}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+              </svg>
+            </button>
+          )}
+          {giveUpPhase !== 'done' && (
+            <button
+              className={`btn-giveup ${isAnimating ? 'solving' : ''}`}
+              onClick={handleGiveUp}
+              disabled={isAnimating}
+            >
+              {isAnimating ? 'Solving…' : 'Give Up'}
+            </button>
+          )}
         </div>
       </div>
 
-      {showSettings && (
+      {showSettings && !isAnimating && (
         <div className="settings-panel">
           <Toggle label="Piece Numbers" checked={showNumbers} onChange={setShowNumbers} />
           <div className="settings-divider" />
@@ -286,30 +353,45 @@ export default function App() {
         winAnimation={winAnimation}
         showConflicts={showConflicts}
         showNumbers={showNumbers}
+        giveUpPhase={giveUpPhase}
+        lastSolvedPieceId={lastSolvedPieceId}
       />
 
       <div className="tray-section">
         {unplacedPieces.length > 0 && (
           <>
-            <p className="tray-label">{unplacedPieces.length} piece{unplacedPieces.length !== 1 ? 's' : ''} remaining</p>
+            <p className="tray-label">
+              {unplacedPieces.length} piece{unplacedPieces.length !== 1 ? 's' : ''} remaining
+            </p>
             <div className="pieces-tray">
-              {unplacedPieces.map(piece => (
-                <div key={piece.id} className="piece-wrapper">
+              {unplacedPieces.map((piece, idx) => (
+                <div
+                  key={piece.id}
+                  className={`piece-wrapper ${giveUpPhase === 'rotating' ? 'give-up-rotating' : ''} ${giveUpPlacingId === piece.id ? 'give-up-lifting' : ''}`}
+                  style={{ '--spin-delay': `${idx * 0.1}s` }}
+                >
                   <Piece
                     piece={piece}
                     colors={puzzle.colors}
                     selected={selectedId === piece.id}
                     showNumbers={showNumbers}
-                    onClick={() => setSelectedId(selectedId === piece.id ? null : piece.id)}
-                    onDragStart={e => e.dataTransfer.setData('pieceId', piece.id)}
+                    onClick={() => !isAnimating && setSelectedId(selectedId === piece.id ? null : piece.id)}
+                    onDragStart={e => {
+                      if (isAnimating) { e.preventDefault(); return; }
+                      e.dataTransfer.setData('pieceId', piece.id);
+                    }}
                   />
-                  <button className="btn-rotate" onClick={() => rotatePiece(piece.id)}>↻</button>
+                  <button
+                    className="btn-rotate"
+                    onClick={() => !isAnimating && rotatePiece(piece.id)}
+                    disabled={isAnimating}
+                  >↻</button>
                 </div>
               ))}
             </div>
           </>
         )}
-        {!showSolution && (
+        {!showSolution && giveUpPhase === 'none' && (
           <button
             className={`btn-check ${allPlaced ? 'ready' : 'disabled'}`}
             onClick={handleCheck}

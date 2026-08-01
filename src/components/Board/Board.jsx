@@ -30,10 +30,11 @@ function getConflicts(placedPieces, gridSize, pieceSize) {
   return { badRows, badCols };
 }
 
-export default function Board({ gridSize, pieceSize, placedPieces, colors, onDrop, onUnplace, onRotateOnBoard, showSolution, winAnimation, showConflicts, showNumbers }) {
+export default function Board({ gridSize, pieceSize, placedPieces, colors, onDrop, onUnplace, onRotateOnBoard, showSolution, winAnimation, showConflicts, showNumbers, giveUpPhase, lastSolvedPieceId }) {
   const [dragOver, setDragOver] = useState(null);
   const slots = gridSize / pieceSize;
   const { badRows, badCols } = getConflicts(placedPieces, gridSize, pieceSize);
+  const isAnimating = giveUpPhase && giveUpPhase !== 'none' && giveUpPhase !== 'done';
 
   function slotHasConflict(sr, sc) {
     for (let r = 0; r < pieceSize; r++)
@@ -44,10 +45,10 @@ export default function Board({ gridSize, pieceSize, placedPieces, colors, onDro
 
   function handleDrop(e, slotRow, slotCol) {
     e.preventDefault();
+    if (isAnimating) return;
     setDragOver(null);
     const pieceId = parseInt(e.dataTransfer.getData('pieceId'));
-    const fromBoard = e.dataTransfer.getData('fromBoard') === 'true';
-    onDrop(pieceId, slotRow, slotCol, fromBoard);
+    onDrop(pieceId, slotRow, slotCol);
   }
 
   return (
@@ -59,22 +60,34 @@ export default function Board({ gridSize, pieceSize, placedPieces, colors, onDro
           const isOver = dragOver === key;
           const hasConflict = placed && showConflicts && slotHasConflict(sr, sc);
           const winDelay = winAnimation ? (sr * slots + sc) * 0.08 : null;
+          const isCollecting = giveUpPhase === 'collecting';
+          const isSolveDrop = placed && lastSolvedPieceId === placed.id;
+
+          let placedStyle = {};
+          if (winAnimation) placedStyle = { animationDelay: `${winDelay}s` };
+          if (isCollecting && placed) placedStyle = { animationDelay: `${(sr + sc) * 0.06}s` };
 
           return (
             <div
               key={key}
-              className={`board-slot ${placed ? 'filled' : 'empty'} ${isOver ? 'drag-over' : ''} ${hasConflict ? 'conflict' : ''}`}
+              className={`board-slot ${placed ? 'filled' : 'empty'} ${isOver && !isAnimating ? 'drag-over' : ''} ${hasConflict ? 'conflict' : ''}`}
               style={winAnimation ? { '--win-delay': `${winDelay}s` } : {}}
-              onDragOver={e => { e.preventDefault(); setDragOver(key); }}
+              onDragOver={e => {
+                if (isAnimating) return;
+                e.preventDefault();
+                setDragOver(key);
+              }}
               onDragLeave={() => setDragOver(null)}
               onDrop={e => handleDrop(e, sr, sc)}
             >
               {placed && (
                 <div
-                  className={`placed-piece ${winAnimation ? 'win-bounce' : ''}`}
-                  style={winAnimation ? { animationDelay: `${winDelay}s` } : {}}
+                  className={`placed-piece ${winAnimation ? 'win-bounce' : ''} ${isCollecting ? 'give-up-collect' : ''} ${isSolveDrop ? 'solve-drop' : ''}`}
+                  style={placedStyle}
                 >
-                  {showNumbers && !showSolution && <span className="piece-number-board">{placed.displayNumber}</span>}
+                  {showNumbers && !showSolution && !isAnimating && (
+                    <span className="piece-number-board">{placed.displayNumber}</span>
+                  )}
                   {(showSolution ? placed.solvedCells : placed.cells).map((row, r) => (
                     <div key={r} className="piece-row">
                       {row.map((colorIdx, c) => (
@@ -82,7 +95,7 @@ export default function Board({ gridSize, pieceSize, placedPieces, colors, onDro
                       ))}
                     </div>
                   ))}
-                  {!showSolution && (
+                  {!showSolution && !isAnimating && (
                     <div className="board-piece-actions">
                       <button className="btn-rotate-board" onClick={() => onRotateOnBoard(placed.id)} title="Rotate">↻</button>
                       <button className="btn-unplace" onClick={() => onUnplace(placed.id)} title="Return to tray">✕</button>
