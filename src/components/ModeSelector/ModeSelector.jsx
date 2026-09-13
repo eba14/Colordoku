@@ -19,7 +19,15 @@ function Toggle({ checked, onChange, label }) {
   );
 }
 
-export default function ModeSelector({ onSelect, showNumbers, onShowNumbers, showConflicts, onShowConflicts }) {
+function formatTime(s) {
+  return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+}
+
+export default function ModeSelector({
+  onSelect, showNumbers, onShowNumbers, showConflicts, onShowConflicts,
+  darkMode, onDarkMode,
+  supabaseEnabled, user, onOpenAuth, onSignOut, bestTimes, savedProgress, onResume,
+}) {
   const [showHow, setShowHow] = useState(false);
 
   return (
@@ -29,12 +37,34 @@ export default function ModeSelector({ onSelect, showNumbers, onShowNumbers, sho
         <p className="subtitle">A color-based puzzle. Place & rotate pieces so no color repeats in any row or column.</p>
       </div>
 
+      {supabaseEnabled && (
+        <div className="account-bar">
+          {user ? (
+            <>
+              <span className="account-email">{user.email}</span>
+              <button className="account-link" onClick={onSignOut}>Sign Out</button>
+            </>
+          ) : (
+            <button className="account-link" onClick={onOpenAuth}>Sign In to save progress</button>
+          )}
+        </div>
+      )}
+
+      {savedProgress && (
+        <button className="resume-banner" onClick={onResume}>
+          Resume {savedProgress.mode} game — {formatTime(savedProgress.elapsedSeconds)} elapsed
+        </button>
+      )}
+
       <div className="mode-grid">
         {MODES.map(({ key, label, desc, color }) => (
           <button key={key} className="mode-btn" style={{ '--mode-color': color }} onClick={() => onSelect(key)}>
             <span className="mode-dot" style={{ background: color }} />
             <span className="mode-label">{label}</span>
             <span className="mode-desc">{desc}</span>
+            {bestTimes?.[key] != null && (
+              <span className="mode-best">Best: {formatTime(bestTimes[key])}</span>
+            )}
           </button>
         ))}
       </div>
@@ -45,6 +75,8 @@ export default function ModeSelector({ onSelect, showNumbers, onShowNumbers, sho
           <Toggle label="Piece Numbers" checked={showNumbers} onChange={onShowNumbers} />
           <div className="settings-divider" />
           <Toggle label="Conflict Highlights" checked={showConflicts} onChange={onShowConflicts} />
+          <div className="settings-divider" />
+          <Toggle label="Dark Mode" checked={darkMode} onChange={onDarkMode} />
         </div>
       </div>
 

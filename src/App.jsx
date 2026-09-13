@@ -3,21 +3,51 @@ import ModeSelector from './components/ModeSelector/ModeSelector';
 import Board from './components/Board/Board';
 import Piece from './components/Piece/Piece';
 import Timer from './components/Timer/Timer';
+import AuthPanel from './components/Auth/AuthPanel';
 import { generatePuzzle } from './logic/generatePuzzle';
 import { validateBoard, buildGridFromPieces } from './logic/validateBoard';
+import { supabaseEnabled } from './lib/supabaseClient';
+import { onAuthChange, signOut, getBestTimes, reportBestTime, saveProgress, loadProgress, clearProgress } from './lib/gameData';
 import './App.css';
 
 function formatTime(s) {
   return `${String(Math.floor(s / 60)).padStart(2,'0')}:${String(s % 60).padStart(2,'0')}`;
 }
 
-function MiniGrid({ grid, colors, gridSize }) {
+function MiniGrid({ grid, colors, gridSize, pieceSize }) {
   const cellSize = Math.max(16, Math.floor(160 / gridSize));
+  const piecesPerRow = gridSize / pieceSize;
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: `repeat(${gridSize}, ${cellSize}px)`, gap: 2, borderRadius: 6, overflow: 'hidden' }}>
-      {grid.map((row, r) => row.map((colorIdx, c) => (
-        <div key={`${r}-${c}`} style={{ width: cellSize, height: cellSize, background: colorIdx >= 0 ? colors[colorIdx] : '#e8dfd0' }} />
-      )))}
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: `repeat(${piecesPerRow}, auto)`,
+        gap: 4,
+        background: 'var(--beige-dark)',
+        padding: 4,
+        borderRadius: 6,
+      }}
+    >
+      {Array.from({ length: piecesPerRow }, (_, pr) =>
+        Array.from({ length: piecesPerRow }, (_, pc) => (
+          <div
+            key={`${pr}-${pc}`}
+            style={{ display: 'grid', gridTemplateColumns: `repeat(${pieceSize}, ${cellSize}px)`, gap: 1, borderRadius: 3, overflow: 'hidden' }}
+          >
+            {Array.from({ length: pieceSize }, (_, r) =>
+              Array.from({ length: pieceSize }, (_, c) => {
+                const colorIdx = grid[pr * pieceSize + r][pc * pieceSize + c];
+                return (
+                  <div
+                    key={`${r}-${c}`}
+                    style={{ width: cellSize, height: cellSize, background: colorIdx >= 0 ? colors[colorIdx] : '#e8dfd0' }}
+                  />
+                );
+              })
+            )}
+          </div>
+        ))
+      )}
     </div>
   );
 }
@@ -85,13 +115,62 @@ export default function App() {
   const [currentMode, setCurrentMode] = useState(null);
   const [showNumbers, setShowNumbers] = useState(true);
   const [showConflicts, setShowConflicts] = useState(true);
+  const [darkMode, setDarkMode] = useState(
+    () => document.documentElement.getAttribute('data-theme') === 'dark'
+  );
   const [showSettings, setShowSettings] = useState(false);
   const [incorrectFeedback, setIncorrectFeedback] = useState(false);
   // give-up animation phases: none | collecting | rotating | placing | done
   const [giveUpPhase, setGiveUpPhase] = useState('none');
   const [giveUpPlacingId, setGiveUpPlacingId] = useState(null);
   const [lastSolvedPieceId, setLastSolvedPieceId] = useState(null);
+  const [user, setUser] = useState(null);
+  const [showAuthPanel, setShowAuthPanel] = useState(false);
+  const [bestTimes, setBestTimes] = useState({});
+  const [savedProgress, setSavedProgress] = useState(null);
+  const [resumeSeconds, setResumeSeconds] = useState(0);
   const puzzleRef = useRef(null);
+  const finalTimeRef = useRef(0);
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
+    try { localStorage.setItem('colordoku-theme', darkMode ? 'dark' : 'light'); } catch { /* ignore */ }
+  }, [darkMode]);
+
+  // Track auth session; refresh best times + saved progress whenever it changes.
+  useEffect(() => {
+    if (!supabaseEnabled) return;
+    return onAuthChange(session => {
+      const u = session?.user ?? null;
+      setUser(u);
+      if (!u) { setBestTimes({}); setSavedProgress(null); }
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+    getBestTimes(user.id).then(setBestTimes);
+    loadProgress(user.id).then(setSavedProgress);
+  }, [user]);
+
+  // Autosave in-progress games for signed-in players (debounced on piece moves).
+  useEffect(() => {
+    if (screen !== 'game' || !user || giveUpPhase !== 'none' || !puzzle) return;
+    const t = setTimeout(() => {
+      saveProgress(user.id, {
+        mode: currentMode, puzzle, trayPieces: pieces, placedPieces,
+        elapsedSeconds: finalTimeRef.current,
+      });
+    }, 800);
+    return () => clearTimeout(t);
+  }, [screen, user, giveUpPhase, puzzle, pieces, placedPieces, currentMode]);
+
+  function handleSignOut() {
+    signOut();
+    setUser(null);
+    setBestTimes({});
+    setSavedProgress(null);
+  }
 
   // Press R to rotate the selected tray piece
   useEffect(() => {
@@ -123,6 +202,8 @@ export default function App() {
     setShowSolution(false);
     setWinAnimation(false);
     setIncorrectFeedback(false);
+    setResumeSeconds(0);
+    finalTimeRef.current = 0;
     setTimerRunning(true);
     setShowSettings(false);
     setGiveUpPhase('none');
@@ -135,6 +216,28 @@ export default function App() {
     puzzleRef.current = generatePuzzle(mode);
     setCurrentMode(mode);
     setScreen('loading');
+  }
+
+  function handleResume() {
+    if (!savedProgress) return;
+    setPuzzle(savedProgress.puzzle);
+    setCurrentMode(savedProgress.mode);
+    setPieces(savedProgress.trayPieces);
+    setPlacedPieces(savedProgress.placedPieces);
+    setPlayerGrid(null);
+    setSelectedId(null);
+    setShowSolution(false);
+    setWinAnimation(false);
+    setIncorrectFeedback(false);
+    setShowSettings(false);
+    setGiveUpPhase('none');
+    setGiveUpPlacingId(null);
+    setLastSolvedPieceId(null);
+    setResumeSeconds(savedProgress.elapsedSeconds);
+    finalTimeRef.current = savedProgress.elapsedSeconds;
+    setFinalTime(savedProgress.elapsedSeconds);
+    setTimerRunning(true);
+    setScreen('game');
   }
 
   function rotatePiece(id, fromBoard = false) {
@@ -184,6 +287,13 @@ export default function App() {
       setTimerRunning(false);
       setWinAnimation(true);
       setPlayerGrid(grid);
+      if (user) {
+        clearProgress(user.id);
+        setSavedProgress(null);
+        reportBestTime(user.id, currentMode, finalTimeRef.current).then(({ improved }) => {
+          if (improved) setBestTimes(prev => ({ ...prev, [currentMode]: finalTimeRef.current }));
+        });
+      }
       setTimeout(() => setScreen('win'), 1400);
     } else {
       setIncorrectFeedback(true);
@@ -198,6 +308,7 @@ export default function App() {
     setSelectedId(null);
     setShowSettings(false);
     setGiveUpPhase('collecting');
+    if (user) { clearProgress(user.id); setSavedProgress(null); }
 
     const solved = puzzle.pieces.map(p => ({
       ...p, cells: p.solvedCells, boardRow: p.solvedRow, boardCol: p.solvedCol,
@@ -251,13 +362,25 @@ export default function App() {
   const isAnimating = giveUpPhase !== 'none' && giveUpPhase !== 'done';
 
   if (screen === 'menu') return (
-    <ModeSelector
-      onSelect={handleModeSelect}
-      showNumbers={showNumbers}
-      onShowNumbers={setShowNumbers}
-      showConflicts={showConflicts}
-      onShowConflicts={setShowConflicts}
-    />
+    <>
+      <ModeSelector
+        onSelect={handleModeSelect}
+        showNumbers={showNumbers}
+        onShowNumbers={setShowNumbers}
+        showConflicts={showConflicts}
+        onShowConflicts={setShowConflicts}
+        darkMode={darkMode}
+        onDarkMode={setDarkMode}
+        supabaseEnabled={supabaseEnabled}
+        user={user}
+        onOpenAuth={() => setShowAuthPanel(true)}
+        onSignOut={handleSignOut}
+        bestTimes={bestTimes}
+        savedProgress={savedProgress}
+        onResume={handleResume}
+      />
+      {showAuthPanel && <AuthPanel onClose={() => setShowAuthPanel(false)} />}
+    </>
   );
 
   if (screen === 'loading') return (
@@ -287,16 +410,24 @@ export default function App() {
             <span className="stat-value">{formatTime(finalTime)}</span>
           </div>
         </div>
-        <div className="answer-compare">
-          <div className="answer-col">
-            <p className="answer-label">Your Solution</p>
-            <MiniGrid grid={playerGrid} colors={puzzle.colors} gridSize={puzzle.gridSize} />
-          </div>
-          <div className="answer-col">
-            <p className="answer-label">Answer Key</p>
-            <MiniGrid grid={puzzle.solvedGrid} colors={puzzle.colors} gridSize={puzzle.gridSize} />
-          </div>
-        </div>
+        {(() => {
+          const matchesExample = playerGrid.every((row, r) => row.every((v, c) => v === puzzle.solvedGrid[r][c]));
+          return (
+            <div className="answer-compare">
+              <div className="answer-col">
+                <p className="answer-label">Your Solution</p>
+                <MiniGrid grid={playerGrid} colors={puzzle.colors} gridSize={puzzle.gridSize} pieceSize={puzzle.pieceSize} />
+              </div>
+              {!matchesExample && (
+                <div className="answer-col">
+                  <p className="answer-label">Example Solution</p>
+                  <MiniGrid grid={puzzle.solvedGrid} colors={puzzle.colors} gridSize={puzzle.gridSize} pieceSize={puzzle.pieceSize} />
+                  <p className="answer-note">Puzzles can have more than one valid layout — yours checks out too.</p>
+                </div>
+              )}
+            </div>
+          );
+        })()}
         <div className="win-actions">
           <button className="btn-primary" onClick={() => startGame(currentMode)}>Play Again</button>
           <button className="btn-secondary" onClick={() => setScreen('menu')}>Change Mode</button>
@@ -308,8 +439,24 @@ export default function App() {
   return (
     <div className="game-screen game-enter">
       <div className="game-header">
-        <button className="btn-back" onClick={() => { setTimerRunning(false); setScreen('menu'); }}>← Menu</button>
-        <Timer running={timerRunning} onTick={setFinalTime} />
+        <button
+          className="btn-back"
+          onClick={() => {
+            setTimerRunning(false);
+            if (user && giveUpPhase === 'none' && puzzle) {
+              saveProgress(user.id, {
+                mode: currentMode, puzzle, trayPieces: pieces, placedPieces,
+                elapsedSeconds: finalTimeRef.current,
+              }).then(() => loadProgress(user.id).then(setSavedProgress));
+            }
+            setScreen('menu');
+          }}
+        >← Menu</button>
+        <Timer
+          running={timerRunning}
+          initialSeconds={resumeSeconds}
+          onTick={s => { finalTimeRef.current = s; setFinalTime(s); }}
+        />
         <div className="header-right">
           {!isAnimating && (
             <button className={`btn-settings ${showSettings ? 'active' : ''}`} onClick={() => setShowSettings(s => !s)}>
@@ -335,6 +482,8 @@ export default function App() {
           <Toggle label="Piece Numbers" checked={showNumbers} onChange={setShowNumbers} />
           <div className="settings-divider" />
           <Toggle label="Conflict Highlights" checked={showConflicts} onChange={setShowConflicts} />
+          <div className="settings-divider" />
+          <Toggle label="Dark Mode" checked={darkMode} onChange={setDarkMode} />
         </div>
       )}
 

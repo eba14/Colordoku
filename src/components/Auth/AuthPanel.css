@@ -1,0 +1,87 @@
+.auth-modal { gap: 18px; }
+
+.auth-sub {
+  font-size: 14px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin-top: -8px;
+}
+
+/* Fixed light styling regardless of theme — matches Google's own "light"
+   sign-in button branding, which shouldn't flip with the app's dark mode. */
+.google-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid rgba(154,123,90,0.3);
+  background: white;
+  color: var(--brown-dark);
+  font-size: 15px;
+  font-family: var(--font-body);
+  font-weight: 600;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.google-btn:hover {
+  border-color: var(--brown);
+  box-shadow: var(--shadow-sm);
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(154,123,90,0.25);
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.auth-form input {
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid rgba(154,123,90,0.3);
+  font-size: 15px;
+  font-family: var(--font-body);
+  background: var(--beige-card);
+  color: var(--text);
+}
+
+.auth-form input:focus {
+  outline: none;
+  border-color: var(--brown);
+}
+
+.auth-error {
+  color: #c0392b;
+  font-size: 13px;
+}
+
+.auth-info {
+  color: var(--label);
+  font-size: 13px;
+}
+
+.auth-switch {
+  font-size: 13px;
+  color: var(--text-muted);
+  text-decoration: underline;
+  align-self: flex-start;
+}

@@ -17,14 +17,14 @@
 }
 
 .board-slot.empty {
-  background: rgba(255,255,255,0.45);
+  background: var(--overlay-soft);
   border: 1.5px dashed rgba(154,123,90,0.35);
   min-width: 48px;
   min-height: 48px;
 }
 
 .board-slot.empty.drag-over {
-  background: rgba(255,255,255,0.9);
+  background: var(--overlay-strong);
   border-color: var(--brown-mid);
   transform: scale(1.04);
   box-shadow: 0 0 0 2px rgba(107,79,56,0.2);

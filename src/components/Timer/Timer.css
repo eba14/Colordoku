@@ -2,7 +2,7 @@
   font-family: var(--font-title);
   font-size: 32px;
   font-weight: 700;
-  color: var(--brown-dark);
+  color: var(--heading);
   letter-spacing: 1px;
   background: var(--beige-card);
   padding: 10px 24px;

@@ -95,7 +95,7 @@
   font-family: var(--font-title);
   font-size: 160px;
   font-weight: 800;
-  color: var(--brown-dark);
+  color: var(--heading);
   letter-spacing: -4px;
   line-height: 1;
   animation: countPop 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards,
@@ -105,7 +105,7 @@
 
 .countdown-number.go {
   font-size: 96px;
-  color: var(--brown-mid);
+  color: var(--label);
   letter-spacing: -2px;
 }
 
@@ -148,7 +148,7 @@
   justify-content: center;
   transition: color 0.15s, border-color 0.15s;
 }
-.btn-settings:hover, .btn-settings.active { color: var(--brown-dark); border-color: var(--brown); }
+.btn-settings:hover, .btn-settings.active { color: var(--heading); border-color: var(--brown); }
 
 .btn-giveup {
   background: var(--beige-card);
@@ -277,7 +277,7 @@
   height: 28px;
   font-size: 15px;
   box-shadow: var(--shadow-sm);
-  color: var(--brown-mid);
+  color: var(--label);
   transition: transform 0.22s;
   border: 1px solid var(--border);
   cursor: pointer;
@@ -324,8 +324,8 @@
 }
 
 .feedback-toast.incorrect {
-  background: #fdf0f0;
-  color: #a03030;
+  background: var(--toast-error-bg);
+  color: var(--toast-error-fg);
   border: 1px solid rgba(160,48,48,0.2);
 }
 
@@ -336,8 +336,8 @@
 
 /* Solution banner */
 .solution-banner {
-  background: #fdf6e3;
-  color: #7a5c1e;
+  background: var(--toast-warn-bg);
+  color: var(--toast-warn-fg);
   padding: 11px 24px;
   border-radius: var(--radius-sm);
   font-weight: 600;
@@ -377,7 +377,7 @@
 
 .win-icon {
   font-size: 36px;
-  color: var(--brown-mid);
+  color: var(--label);
   line-height: 1;
 }
 
@@ -385,7 +385,7 @@
   font-family: var(--font-title);
   font-size: 52px;
   font-weight: 800;
-  color: var(--brown-dark);
+  color: var(--heading);
   letter-spacing: -1px;
   line-height: 1;
 }
@@ -435,13 +435,14 @@
   font-family: var(--font-title);
   font-size: 24px;
   font-weight: 700;
-  color: var(--brown-dark);
+  color: var(--heading);
   text-transform: capitalize;
 }
 
 /* Answer comparison */
 .answer-compare {
   display: flex;
+  flex-wrap: wrap;
   gap: 28px;
   justify-content: center;
 }
@@ -450,6 +451,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  flex-shrink: 0;
   gap: 8px;
 }
 
@@ -459,6 +461,14 @@
   letter-spacing: 0.8px;
   color: var(--text-muted);
   font-weight: 600;
+}
+
+.answer-note {
+  font-size: 11px;
+  color: var(--text-muted);
+  max-width: 160px;
+  text-align: center;
+  line-height: 1.4;
 }
 
 .win-actions {
@@ -484,7 +494,7 @@
 
 .btn-secondary {
   background: transparent;
-  color: var(--brown-mid);
+  color: var(--label);
   padding: 14px 32px;
   border-radius: var(--radius-sm);
   font-size: 16px;
