@@ -2,6 +2,8 @@
 
 A color-based puzzle game. Place and rotate pieces on the board so that no color repeats in any row or column.
 
+**[Play it here](https://eba14.github.io/Colordoku/)**
+
 ## Tech stack
 
 - **JavaScript (JSX)** — application code
