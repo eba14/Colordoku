@@ -26,9 +26,16 @@ function formatTime(s) {
 export default function ModeSelector({
   onSelect, showNumbers, onShowNumbers, showConflicts, onShowConflicts,
   darkMode, onDarkMode,
-  supabaseEnabled, user, onOpenAuth, onSignOut, bestTimes, savedProgress, onResume,
+  supabaseEnabled, user, onOpenAuth, onSignOut, bestTimes, onClearBestTimes, savedProgress, onResume,
 }) {
   const [showHow, setShowHow] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const hasAnyBestTime = bestTimes && Object.keys(bestTimes).length > 0;
+
+  function handleConfirmClear() {
+    onClearBestTimes();
+    setShowClearConfirm(false);
+  }
 
   return (
     <div className="mode-selector">
@@ -56,6 +63,36 @@ export default function ModeSelector({
         </button>
       )}
 
+      {user && hasAnyBestTime && (
+        <div className="stats-panel">
+          <p className="stats-title">Your Best Times</p>
+          <div className="stats-grid">
+            {MODES.map(({ key, label }) => (
+              <div key={key} className="stats-row">
+                <span className="stats-mode">{label}</span>
+                <span className="stats-time">{bestTimes[key] != null ? formatTime(bestTimes[key]) : '—'}</span>
+              </div>
+            ))}
+          </div>
+          <button className="stats-clear" onClick={() => setShowClearConfirm(true)}>Clear My Best Times</button>
+        </div>
+      )}
+
+      {showClearConfirm && (
+        <div className="modal-overlay" onClick={() => setShowClearConfirm(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <h2>Clear your best times?</h2>
+            <p className="clear-warning">
+              This permanently deletes your saved best time for every difficulty. This can't be undone.
+            </p>
+            <div className="clear-actions">
+              <button className="btn-secondary" onClick={() => setShowClearConfirm(false)}>Cancel</button>
+              <button className="btn-danger" onClick={handleConfirmClear}>Clear Times</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="mode-grid">
         {MODES.map(({ key, label, desc, color }) => (
           <button key={key} className="mode-btn" style={{ '--mode-color': color }} onClick={() => onSelect(key)}>
@@ -81,6 +118,8 @@ export default function ModeSelector({
       </div>
 
       <button className="btn-how" onClick={() => setShowHow(true)}>How to Play</button>
+
+      <a className="privacy-link" href="./privacy.html">Privacy Policy</a>
 
       {showHow && (
         <div className="modal-overlay" onClick={() => setShowHow(false)}>

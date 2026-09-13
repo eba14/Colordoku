@@ -492,6 +492,19 @@
 }
 .btn-primary:hover { opacity: 0.85; transform: translateY(-1px); }
 
+.btn-danger {
+  background: #b85c5c;
+  color: white;
+  padding: 14px 32px;
+  border-radius: var(--radius-sm);
+  font-size: 16px;
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
+  transition: opacity 0.15s, transform 0.15s;
+  flex: 1;
+}
+.btn-danger:hover { opacity: 0.85; transform: translateY(-1px); }
+
 .btn-secondary {
   background: transparent;
   color: var(--label);

@@ -44,7 +44,9 @@ npm run lint    # eslint
 - `supabase/schema.sql` — database schema to run in your own Supabase project
 
 <details>
-<summary><h2 style="display:inline">Supabase setup (save progress + best times)</h2></summary>
+<summary><strong>Supabase setup (save progress + best times)</strong></summary>
+
+> **This section is only for someone running their own copy of this code.** If you're just playing the game at [the link above](https://eba14.github.io/Colordoku/), sign-in and saved progress already work out of the box — there is nothing for you to configure. The steps below are for setting up a *separate* Supabase project for your own fork/deployment.
 
 Signing in, saved progress, and best times are optional — the game works fully offline without any of this configured.
 

@@ -7,7 +7,7 @@ import AuthPanel from './components/Auth/AuthPanel';
 import { generatePuzzle } from './logic/generatePuzzle';
 import { validateBoard, buildGridFromPieces } from './logic/validateBoard';
 import { supabaseEnabled } from './lib/supabaseClient';
-import { onAuthChange, signOut, getBestTimes, reportBestTime, saveProgress, loadProgress, clearProgress } from './lib/gameData';
+import { onAuthChange, signOut, getBestTimes, reportBestTime, saveProgress, loadProgress, clearProgress, clearBestTimes } from './lib/gameData';
 import './App.css';
 
 function formatTime(s) {
@@ -170,6 +170,12 @@ export default function App() {
     setUser(null);
     setBestTimes({});
     setSavedProgress(null);
+  }
+
+  async function handleClearBestTimes() {
+    if (!user) return;
+    const { error } = await clearBestTimes(user.id);
+    if (!error) setBestTimes({});
   }
 
   // Press R to rotate the selected tray piece
@@ -376,6 +382,7 @@ export default function App() {
         onOpenAuth={() => setShowAuthPanel(true)}
         onSignOut={handleSignOut}
         bestTimes={bestTimes}
+        onClearBestTimes={handleClearBestTimes}
         savedProgress={savedProgress}
         onResume={handleResume}
       />

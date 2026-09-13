@@ -89,6 +89,12 @@ export async function loadProgress(userId) {
   };
 }
 
+export async function clearBestTimes(userId) {
+  const { error } = await supabase.from('best_times').delete().eq('user_id', userId);
+  if (error) console.error('clearBestTimes: failed to clear best times', error);
+  return { error };
+}
+
 export async function clearProgress(userId) {
   const { error } = await supabase.from('game_progress').delete().eq('user_id', userId);
   if (error) console.error('clearProgress: failed to clear progress', error);
