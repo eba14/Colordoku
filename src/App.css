@@ -111,17 +111,21 @@
 
 /* Header */
 .game-header {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: space-between;
+  justify-items: center;
   width: 100%;
 }
 
 .header-right {
   display: flex;
   align-items: center;
+  justify-self: end;
   gap: 8px;
 }
+
+.btn-back { justify-self: start; }
 
 .btn-back {
   background: var(--beige-card);
