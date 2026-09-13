@@ -4,9 +4,12 @@ A color-based puzzle game. Place and rotate pieces on the board so that no color
 
 ## Tech stack
 
-- **React** + **Vite** — UI and build tooling
-- **Plain CSS** with custom properties — theming (including dark mode), no CSS framework
+- **JavaScript (JSX)** — application code
+- **HTML** — entry point (`index.html`)
+- **CSS** with custom properties — theming (including dark mode), no CSS framework
+- **React** + **Vite** — UI library and build tooling
 - **Supabase** — auth (email/password + Google OAuth), Postgres database with row-level security, used for saved progress and best times
+- **GitHub Actions** — CI/CD, auto-deploys to GitHub Pages on every push to `main`
 
 ## Modes
 
